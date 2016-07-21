@@ -27,7 +27,6 @@ import android.widget.Toast;
 import com.google.gson.JsonObject;
 import com.koushikdutta.async.future.FutureCallback;
 import com.koushikdutta.ion.Ion;
-import com.lc.lc.DataLogic.SharedManager;
 import com.lc.lc.dialog.Dialog;
 import com.twilio.common.AccessManager;
 import com.twilio.conversations.AudioOutput;
@@ -61,7 +60,7 @@ public class ConversationActivity extends AppCompatActivity {
     /*
      * You must provide a Twilio AccessToken to connect to the Conversations service
      */
-    private String TWILIO_ACCESS_TOKEN = null;
+    private static final String TWILIO_ACCESS_TOKEN = "YOUR ACCESS TOKEN HERE";
 
     /*
      * Twilio Conversations Client allows a client to create or participate in a conversation.
@@ -86,7 +85,6 @@ public class ConversationActivity extends AppCompatActivity {
     private VideoViewRenderer participantVideoRenderer;
     private VideoViewRenderer localVideoRenderer;
 
-    private String mIdentity = null;
     /*
      * Android application UI elements
      */
@@ -140,17 +138,21 @@ public class ConversationActivity extends AppCompatActivity {
          * Needed for setting/abandoning audio focus during call
          */
         audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+        Log.d("cek", "oncreate");
 
         /*
          * Check camera and microphone permissions. Needed in Android M.
          */
         if (!checkPermissionForCameraAndMicrophone()) {
             requestPermissionForCameraAndMicrophone();
+            Log.d("cek", "request");
         } else {
             /*
              * Initialize the Twilio Conversations SDK
              */
+            Log.d("cek", "initializeTwilioSdk() start");
             initializeTwilioSdk();
+
         }
 
         /*
@@ -254,6 +256,13 @@ public class ConversationActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        TwilioConversationsClient.destroy();
+    }
+
+
     /*
      * The initial state when there is no active conversation.
      */
@@ -262,7 +271,6 @@ public class ConversationActivity extends AppCompatActivity {
                 R.drawable.ic_call_white_24px));
         callActionFab.show();
         callActionFab.setOnClickListener(callActionFabClickListener());
-        callActionFab.setVisibility(View.GONE);
         switchCameraActionFab.show();
         switchCameraActionFab.setOnClickListener(switchCameraClickListener());
         localVideoActionFab.show();
@@ -288,6 +296,7 @@ public class ConversationActivity extends AppCompatActivity {
      * Creates an outgoing conversation UI dialog
      */
     private void showCallDialog() {
+        Log.e("cek", "showCallDialog()");
         EditText participantEditText = new EditText(this);
         alertDialog = Dialog.createCallParticipantsDialog(participantEditText,
                 callParticipantClickListener(participantEditText), cancelCallClickListener(), this);
@@ -308,12 +317,11 @@ public class ConversationActivity extends AppCompatActivity {
      * Initialize the Twilio Conversations SDK
      */
     private void initializeTwilioSdk(){
-
-        TWILIO_ACCESS_TOKEN = SharedManager.getInstance().mToken;
-
+        Log.d("cek", "initializeTwilioSdk()");
         TwilioConversationsClient.setLogLevel(LogLevel.ERROR);
 
         if(!TwilioConversationsClient.isInitialized()) {
+            Log.d("cek", "!TwilioConversationsClient.isInitialized()" );
             TwilioConversationsClient.initialize(getApplicationContext());
             /*
              * Now that the SDK is initialized we create a ConversationsClient and
@@ -321,7 +329,7 @@ public class ConversationActivity extends AppCompatActivity {
              * of the access token and notifies the client of token expirations.
              */
             // OPTION 1- Generate an access token from the getting started portal https://www.twilio.com/user/account/video/getting-started
-            /*accessManager = AccessManager.create(ConversationActivity.this,
+            accessManager = new AccessManager(ConversationActivity.this,
                     TWILIO_ACCESS_TOKEN,
                     accessManagerListener());
             conversationsClient =
@@ -335,9 +343,9 @@ public class ConversationActivity extends AppCompatActivity {
             startPreview();
             // Register to receive incoming invites
             conversationsClient.listen();
-*/
+
             // OPTION 2- Retrieve an access token from your own web app
-            retrieveAccessTokenfromServer();
+//            retrieveAccessTokenfromServer();
         }
     }
 
@@ -452,9 +460,12 @@ public class ConversationActivity extends AppCompatActivity {
                 String participant = participantEditText.getText().toString();
                 if (!participant.isEmpty() && (conversationsClient != null)) {
                     stopPreview();
+                    Log.e("cek", "callParticipantClickListener");
                     // Create participants set (we support only one in this example)
                     Set<String> participants = new HashSet<>();
                     participants.add(participant);
+//                    Set<String> participants = new HashSet<>();
+//                    participants.add("riris");
                     // Create local media
                     LocalMedia localMedia = setupLocalMedia();
                     setAudioFocus(true);
@@ -666,6 +677,7 @@ public class ConversationActivity extends AppCompatActivity {
         return new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                Log.e("cek", "callActionFabClickListener()");
                 showCallDialog();
             }
         };
@@ -788,7 +800,8 @@ public class ConversationActivity extends AppCompatActivity {
                                             Participant participant,
                                             VideoTrack videoTrack) {
                 Log.i(TAG, "onVideoTrackRemoved " + participant.getIdentity());
-                conversationStatusTextView.setText("onVideoTrackRemoved " + participant.getIdentity());
+                conversationStatusTextView.setText("onVideoTrackRemoved " +
+                        participant.getIdentity());
                 participantContainer.removeAllViews();
                 participantVideoRenderer.release();
 
@@ -846,7 +859,6 @@ public class ConversationActivity extends AppCompatActivity {
             @Override
             public void onFailedToStartListening(TwilioConversationsClient conversationsClient,
                                                  TwilioConversationsException e) {
-                Log.d("TokenError", e.getMessage());
                 conversationStatusTextView.setText("onFailedToStartListening");
             }
 
@@ -900,6 +912,7 @@ public class ConversationActivity extends AppCompatActivity {
             @Override
             public void onTokenUpdated(AccessManager twilioAccessManager) {
                 conversationStatusTextView.setText("onTokenUpdated");
+
             }
 
             @Override
@@ -955,21 +968,18 @@ public class ConversationActivity extends AppCompatActivity {
 
     private void retrieveAccessTokenfromServer() {
         Ion.with(this)
-                .load("https://losscapture.com/v1/media/connect")
+                .load("http://localhost:8000/token.php")
                 .asJsonObject()
                 .setCallback(new FutureCallback<JsonObject>() {
                     @Override
                     public void onCompleted(Exception e, JsonObject result) {
                         if (e == null) {
                             // The identity can be used to receive calls
-                            JsonObject tokenData = result.get("data").getAsJsonObject();
+                            String identity = result.get("identity").getAsString();
+                            String accessToken = result.get("token").getAsString();
 
-
-                            mIdentity = tokenData.get("identity").getAsString();
-                            String accessToken = tokenData.get("token").getAsString();
-                            Log.e("AccessToken ", accessToken);
-                            setTitle(mIdentity);
-                            accessManager = AccessManager.create(ConversationActivity.this,
+                            setTitle(identity);
+                            accessManager = new AccessManager(ConversationActivity.this,
                                     accessToken,
                                     accessManagerListener());
                             conversationsClient =
@@ -986,46 +996,6 @@ public class ConversationActivity extends AppCompatActivity {
 
                             // Register to receive incoming invites
                             conversationsClient.listen();
-
-                            //////////////////////////////////////////////////////////////////////////////////////////////
-                            String participant = "Steve";
-                            if (!participant.isEmpty() && (conversationsClient != null)) {
-                                stopPreview();
-                                // Create participants set (we support only one in this example)
-                                Set<String> participants = new HashSet<>();
-                                participants.add(participant);
-                                // Create local media
-                                LocalMedia localMedia = setupLocalMedia();
-                                setAudioFocus(true);
-
-                                // Create outgoing invite
-                                outgoingInvite = conversationsClient.inviteToConversation(participants,
-                                        localMedia, new ConversationCallback() {
-                                            @Override
-                                            public void onConversation(Conversation conversation,
-                                                                       TwilioConversationsException e) {
-                                                if (e == null) {
-                                                    // Participant has accepted invite, we are in active conversation
-                                                    ConversationActivity.this.conversation = conversation;
-                                                    conversation.setConversationListener(conversationListener());
-                                                } else {
-                                                    Log.e("ConversationError", e.getMessage());
-                                                    if (!loggingOut) {
-                                                        hangup();
-                                                        reset();
-                                                    } else {
-                                                        logout();
-                                                    }
-                                                }
-                                            }
-                                        });
-                                setHangupAction();
-                            } else {
-                                Log.e(TAG, "Failed to invite participant to conversation");
-                                conversationStatusTextView.setText(
-                                        "Failed to invite participant to conversation");
-                            }
-                            /////////////////////////////////////////////////////////////////////////////////////////////
                         } else {
                             Toast.makeText(ConversationActivity.this,
                                     R.string.error_retrieving_access_token, Toast.LENGTH_SHORT)

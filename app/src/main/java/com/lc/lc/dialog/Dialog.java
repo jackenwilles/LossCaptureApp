@@ -7,6 +7,12 @@ import android.widget.EditText;
 
 import com.lc.lc.R;
 
+import android.content.Context;
+import android.content.DialogInterface;
+import android.support.v7.app.AlertDialog;
+import android.widget.EditText;
+
+
 public class Dialog {
 
     public static AlertDialog createInviteDialog(String caller, DialogInterface.OnClickListener acceptClickListener, DialogInterface.OnClickListener rejectClickListener, Context context) {
@@ -43,4 +49,5 @@ public class Dialog {
         int verticalPadding = context.getResources().getDimensionPixelOffset(R.dimen.activity_vertical_margin);
         alertDialogBuilder.setView(participantEditText, horizontalPadding, verticalPadding, horizontalPadding, 0);
     }
+
 }
