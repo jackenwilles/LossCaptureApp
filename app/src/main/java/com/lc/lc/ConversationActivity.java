@@ -60,7 +60,7 @@ public class ConversationActivity extends AppCompatActivity {
     /*
      * You must provide a Twilio AccessToken to connect to the Conversations service
      */
-    private static final String TWILIO_ACCESS_TOKEN = "YOUR ACCESS TOKEN HERE";
+    private static final String TWILIO_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2M2MjAyNWUxNjBjNTE4ODk5N2U1M2ZlOTc5YWYwMGI3LTE0NjkwOTM2MTUiLCJpc3MiOiJTS2M2MjAyNWUxNjBjNTE4ODk5N2U1M2ZlOTc5YWYwMGI3Iiwic3ViIjoiQUM1NTM0ZDE3ZmRiMzMyOGZlNjg3OTc0MjViMDA1NDg0YyIsImV4cCI6MTQ2OTA5NzIxNSwiZ3JhbnRzIjp7ImlkZW50aXR5IjoiUmlyaXMiLCJydGMiOnsiY29uZmlndXJhdGlvbl9wcm9maWxlX3NpZCI6IlZTYjIzNTQ2YzRjNGVhZWNhZTY1MjhiMmI1MzNjMGE3YmMifX19.NGScFbd5Gu5awTZBXmT74ejCaMgVPg4FMiAUVkciVpI";
 
     /*
      * Twilio Conversations Client allows a client to create or participate in a conversation.
@@ -91,6 +91,7 @@ public class ConversationActivity extends AppCompatActivity {
     private FrameLayout previewFrameLayout;
     private ViewGroup localContainer;
     private ViewGroup participantContainer;
+    private TextView usernameTextView;
     private TextView conversationStatusTextView;
     private AccessManager accessManager;
     private CameraCapturer cameraCapturer;
@@ -122,6 +123,7 @@ public class ConversationActivity extends AppCompatActivity {
         localContainer = (ViewGroup)findViewById(R.id.localContainer);
         participantContainer = (ViewGroup)findViewById(R.id.participantContainer);
         conversationStatusTextView = (TextView) findViewById(R.id.conversation_status_textview);
+        usernameTextView = (TextView) findViewById(R.id.txtUsername);
 
         callActionFab = (FloatingActionButton) findViewById(R.id.call_action_fab);
         switchCameraActionFab = (FloatingActionButton) findViewById(R.id.switch_camera_action_fab);
@@ -329,23 +331,23 @@ public class ConversationActivity extends AppCompatActivity {
              * of the access token and notifies the client of token expirations.
              */
             // OPTION 1- Generate an access token from the getting started portal https://www.twilio.com/user/account/video/getting-started
-            accessManager = new AccessManager(ConversationActivity.this,
-                    TWILIO_ACCESS_TOKEN,
-                    accessManagerListener());
-            conversationsClient =
-                    TwilioConversationsClient.create(accessManager, conversationsClientListener());
-            // Specify the audio output to use for this conversation client
-            conversationsClient.setAudioOutput(AudioOutput.SPEAKERPHONE);
-            // Initialize the camera capturer and start the camera preview
-            cameraCapturer = CameraCapturer.create(ConversationActivity.this,
-                    CameraCapturer.CameraSource.CAMERA_SOURCE_FRONT_CAMERA,
-                    capturerErrorListener());
-            startPreview();
-            // Register to receive incoming invites
-            conversationsClient.listen();
+//            accessManager = new AccessManager(ConversationActivity.this,
+//                    TWILIO_ACCESS_TOKEN,
+//                    accessManagerListener());
+//            conversationsClient =
+//                    TwilioConversationsClient.create(accessManager, conversationsClientListener());
+//            // Specify the audio output to use for this conversation client
+//            conversationsClient.setAudioOutput(AudioOutput.SPEAKERPHONE);
+//            // Initialize the camera capturer and start the camera preview
+//            cameraCapturer = CameraCapturer.create(ConversationActivity.this,
+//                    CameraCapturer.CameraSource.CAMERA_SOURCE_FRONT_CAMERA,
+//                    capturerErrorListener());
+//            startPreview();
+//            // Register to receive incoming invites
+//            conversationsClient.listen();
 
             // OPTION 2- Retrieve an access token from your own web app
-//            retrieveAccessTokenfromServer();
+            retrieveAccessTokenfromServer();
         }
     }
 
@@ -842,13 +844,16 @@ public class ConversationActivity extends AppCompatActivity {
      */
     private TwilioConversationsClient.Listener conversationsClientListener() {
         return new TwilioConversationsClient.Listener() {
+
             @Override
             public void onStartListeningForInvites(TwilioConversationsClient conversationsClient) {
+                Log.d("tes","onStartListeningForInvites");
                 conversationStatusTextView.setText("onStartListeningForInvites");
             }
 
             @Override
             public void onStopListeningForInvites(TwilioConversationsClient conversationsClient) {
+                Log.d("tes","onStopListeningForInvites");
                 conversationStatusTextView.setText("onStopListeningForInvites");
                 // If we are logging out let us finish the teardown process
                 if (loggingOut) {
@@ -859,12 +864,14 @@ public class ConversationActivity extends AppCompatActivity {
             @Override
             public void onFailedToStartListening(TwilioConversationsClient conversationsClient,
                                                  TwilioConversationsException e) {
+                Log.d("tes","onFailedToStartListening");
                 conversationStatusTextView.setText("onFailedToStartListening");
             }
 
             @Override
             public void onIncomingInvite(TwilioConversationsClient conversationsClient,
                                          IncomingInvite incomingInvite) {
+                Log.d("tes","onIncomingInvite");
                 conversationStatusTextView.setText("onIncomingInvite");
                 if (conversation == null) {
                     showInviteDialog(incomingInvite);
@@ -877,6 +884,7 @@ public class ConversationActivity extends AppCompatActivity {
             @Override
             public void onIncomingInviteCancelled(TwilioConversationsClient conversationsClient,
                                                   IncomingInvite incomingInvite) {
+                Log.d("tes","onIncomingInviteCancelled");
                 conversationStatusTextView.setText("onIncomingInviteCancelled");
                 alertDialog.dismiss();
                 Snackbar.make(conversationStatusTextView, "Invite from " +
@@ -968,7 +976,7 @@ public class ConversationActivity extends AppCompatActivity {
 
     private void retrieveAccessTokenfromServer() {
         Ion.with(this)
-                .load("http://localhost:8000/token.php")
+                .load("https://losscaptureapp.herokuapp.com/token.php")
                 .asJsonObject()
                 .setCallback(new FutureCallback<JsonObject>() {
                     @Override
@@ -977,6 +985,9 @@ public class ConversationActivity extends AppCompatActivity {
                             // The identity can be used to receive calls
                             String identity = result.get("identity").getAsString();
                             String accessToken = result.get("token").getAsString();
+
+                            Log.d("IDENTITY", identity);
+                            usernameTextView.setText(identity);
 
                             setTitle(identity);
                             accessManager = new AccessManager(ConversationActivity.this,
@@ -1025,4 +1036,5 @@ public class ConversationActivity extends AppCompatActivity {
             }
         }
     }
+
 }
