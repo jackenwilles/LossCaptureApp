@@ -1,12 +1,11 @@
 package com.lc.lc;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
@@ -15,6 +14,10 @@ import android.media.CamcorderProfile;
 import android.media.ExifInterface;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.SystemClock;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.telephony.PhoneStateListener;
 import android.telephony.SignalStrength;
 import android.telephony.TelephonyManager;
@@ -24,17 +27,9 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -45,18 +40,24 @@ import com.lc.lc.DataLogic.Model.CustomerInfo;
 import com.lc.lc.DataLogic.SharedManager;
 import com.lc.lc.DataLogic.WebManager.MyWaiter;
 
-import org.w3c.dom.Text;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 
-public class MainActivity extends Activity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener{
+public class MainActivity extends Activity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
     private Dialog mClaimDlg;
-    private int     mClaimID;
-    private String  mLastName;
+    private int mClaimID;
+    private String mLastName;
 
     private GoogleApiClient mGoogleApiClient;
     public static final String TAG = MainActivity.class.getSimpleName();
     private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
+    private static final int CAMERA_MIC_PERMISSION_REQUEST_CODE = 1;
     private LocationRequest mLocationRequest;
     private Location mCurLocation;
 
@@ -75,6 +76,14 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
 
     private boolean bFlash = false;
 
+    private long startTime = 0L;
+
+    private Handler customHandler = new Handler();
+
+    long timeInMilliseconds = 0L;
+    long timeSwapBuff = 0L;
+    long updatedTime = 0L;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,7 +97,9 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         myContext = this;
 
+
         initialize();
+
     }
 
 
@@ -128,33 +139,70 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
 
     public void onResume() {
         super.onResume();
-        if (!hasCamera(myContext)) {
-            Toast toast = Toast.makeText(myContext, "Sorry, your phone does not have a camera!", Toast.LENGTH_LONG);
-            toast.show();
-            finish();
-        }
-        if (mCamera == null) {
-            //if the front facing camera does not exist
-            if (findFrontFacingCamera() < 0) {
-                Toast.makeText(this, "No front facing camera found.", Toast.LENGTH_LONG).show();
-                btn_logo.setVisibility(View.GONE);
+
+        //if (checkPermissionForCameraAndMicrophone()) {
+            if (!hasCamera(myContext)) {
+                Toast toast = Toast.makeText(myContext, "Sorry, your phone does not have a camera!", Toast.LENGTH_LONG);
+                toast.show();
+                finish();
             }
-            releaseCamera();
-            chooseCamera();
+            if (mCamera == null) {
+                //if the front facing camera does not exist
+                if (findFrontFacingCamera() < 0) {
+                    Toast.makeText(this, "No front facing camera found.", Toast.LENGTH_LONG).show();
+                    btn_logo.setVisibility(View.GONE);
+                }
+                releaseCamera();
+                chooseCamera();
             /*mCamera = Camera.open(findBackFacingCamera());
             mPicture = getPictureCallback();
             mPreview.refreshCamera(mCamera);*/
-        }
+            }
+        //}
         mGoogleApiClient.connect();
+
+
+    }
+
+    private boolean checkPermissionForCameraAndMicrophone() {
+        int resultCamera = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
+        int resultMic = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO);
+        if ((resultCamera == PackageManager.PERMISSION_GRANTED) &&
+                (resultMic == PackageManager.PERMISSION_GRANTED)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private void requestPermissionForCameraAndMicrophone() {
+        if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA) ||
+                ActivityCompat.shouldShowRequestPermissionRationale(this,
+                        Manifest.permission.RECORD_AUDIO)) {
+            Toast.makeText(this,
+                    R.string.permissions_needed,
+                    Toast.LENGTH_LONG).show();
+        } else {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO},
+                    CAMERA_MIC_PERMISSION_REQUEST_CODE);
+        }
     }
 
     public void initialize() {
 
-        RelativeLayout bl  = (RelativeLayout) findViewById(R.id.front);
+        RelativeLayout bl = (RelativeLayout) findViewById(R.id.front);
         bl.bringToFront();
+
         layout_preview = (RelativeLayout) findViewById(R.id.camera_preview);
-        mPreview = new CameraPreview(myContext, mCamera);
-        layout_preview.addView(mPreview);
+
+//        if (!checkPermissionForCameraAndMicrophone()) {
+//            requestPermissionForCameraAndMicrophone();
+//        } else {
+            mPreview = new CameraPreview(myContext, mCamera);
+            layout_preview.addView(mPreview);
+//        }
 
         btn_capture = (ImageView) findViewById(R.id.btn_camera);
         btn_capture.setOnClickListener(captrureListener);
@@ -162,21 +210,21 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
         btn_logo = (ImageView) findViewById(R.id.btn_mark);
         btn_logo.setOnClickListener(logoClickListener);
 
-        btn_record = (ImageView)findViewById(R.id.btn_rec);
+        btn_record = (ImageView) findViewById(R.id.btn_rec);
         btn_record.setOnClickListener(videoCaptureListener);
 
-        btn_flash = (ImageView)findViewById(R.id.btn_light);
+        btn_flash = (ImageView) findViewById(R.id.btn_light);
         btn_flash.setOnClickListener(flashClickListener);
 
-        pic_signal = (ImageView)findViewById(R.id.btn_signal);
+        pic_signal = (ImageView) findViewById(R.id.btn_signal);
 
-        btn_claim = (ImageView)findViewById(R.id.btn_claim);
+        btn_claim = (ImageView) findViewById(R.id.btn_claim);
         btn_claim.setOnClickListener(claimClickListener);
 
-        timer = (TextView)findViewById(R.id.tv_timer);
+        timer = (TextView) findViewById(R.id.tv_timer);
         bullet = (ImageView) findViewById(R.id.bullet);
         //Signal Strength
-        TelephonyManager tele = (TelephonyManager)getSystemService(TELEPHONY_SERVICE);
+        TelephonyManager tele = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
         tele.listen(new myPhoneStateListener(), PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
 
         //GeoLocation
@@ -195,30 +243,33 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
     }
 
     public void chooseCamera() {
-        //if the camera preview is the front
-        if (bCameraFront) {
-            int cameraId = findBackFacingCamera();
-            if (cameraId >= 0) {
-                //open the backFacingCamera
-                //set a picture callback
-                //refresh the preview
+       // if (checkPermissionForCameraAndMicrophone()) {
+            //if the camera preview is the front
+            if (bCameraFront) {
+                int cameraId = findBackFacingCamera();
+                if (cameraId >= 0) {
+                    //open the backFacingCamera
+                    //set a picture callback
+                    //refresh the preview
 
-                mCamera = Camera.open(cameraId);
-                mPicture = getPictureCallback();
-                mPreview.refreshCamera(mCamera);
-            }
-        } else {
-            int cameraId = findFrontFacingCamera();
-            if (cameraId >= 0) {
-                //open the backFacingCamera
-                //set a picture callback
-                //refresh the preview
+                    mCamera = Camera.open(cameraId);
+                    mPicture = getPictureCallback();
+                    mPreview.refreshCamera(mCamera);
+                }
+            } else {
+                int cameraId = findFrontFacingCamera();
+                if (cameraId >= 0) {
+                    //open the backFacingCamera
+                    //set a picture callback
+                    //refresh the preview
 
-                mCamera = Camera.open(cameraId);
-                mPicture = getPictureCallback();
-                mPreview.refreshCamera(mCamera);
+                    mCamera = Camera.open(cameraId);
+                    mPicture = getPictureCallback();
+                    mPreview.refreshCamera(mCamera);
+                }
             }
-        }
+
+       // }
     }
 
     @Override
@@ -258,6 +309,7 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
                     fos.write(data);
                     fos.close();
                     Toast toast = Toast.makeText(myContext, "Picture saved: " + pictureFile.getName(), Toast.LENGTH_LONG);
+                    Log.d("masuk", "masuk getPictureCallback()");
                     toast.show();
                     fileUpload(1);
 
@@ -271,6 +323,8 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
         };
         return picture;
     }
+
+
 
     View.OnClickListener captrureListener = new View.OnClickListener() {
         @Override
@@ -301,7 +355,7 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
         }
     };
 
-    View.OnClickListener videoCaptureListener = new View.OnClickListener(){
+    View.OnClickListener videoCaptureListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
             if (bRecording) {
@@ -312,6 +366,13 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
                             bullet.setImageDrawable(getResources().getDrawable(R.drawable.grey_bullet));
                             btn_record.setImageResource(R.drawable.record_off_round);
                             mRecorder.stop(); // stop the recording
+
+                            //Stop timer video
+                            //timeSwapBuff += timeInMilliseconds;
+                            timeInMilliseconds = 0;
+                            customHandler.removeCallbacks(updateTimerThread);
+                            timer.setText("0:00");
+
                             releaseMediaRecorder(); // release the MediaRecorder object
                             Toast.makeText(MainActivity.this, "Video captured!", Toast.LENGTH_LONG).show();
                             fileUpload(2);
@@ -335,6 +396,10 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
                             btn_record.setImageResource(R.drawable.record_on_round);
                             mRecorder.start();
 
+                            //Start timer video
+                            startTime = SystemClock.uptimeMillis();
+                            customHandler.postDelayed(updateTimerThread, 0);
+
 
                         } catch (final Exception ex) {
                         }
@@ -345,6 +410,26 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
         }
     };
 
+    //Update timer video
+    private Runnable updateTimerThread = new Runnable() {
+
+        public void run() {
+
+            timeInMilliseconds = SystemClock.uptimeMillis() - startTime;
+
+            updatedTime = timeSwapBuff + timeInMilliseconds;
+
+            int secs = (int) (updatedTime / 1000);
+            int mins = secs / 60;
+            secs = secs % 60;
+            int milliseconds = (int) (updatedTime % 1000);
+            timer.setText("" + mins + ":"
+                    + String.format("%02d", secs));
+            customHandler.postDelayed(this, 0);
+        }
+
+    };
+
     View.OnClickListener flashClickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
@@ -352,11 +437,9 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
 
             bFlash = !bFlash;
 
-            if(bFlash)
-            {
+            if (bFlash) {
                 p.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH);
-            }
-            else{
+            } else {
                 p.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
             }
 
@@ -364,7 +447,7 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
         }
     };
 
-    View.OnClickListener claimClickListener = new View.OnClickListener(){
+    View.OnClickListener claimClickListener = new View.OnClickListener() {
 
         @Override
         public void onClick(View v) {
@@ -373,42 +456,40 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
             mClaimDlg.requestWindowFeature(Window.FEATURE_NO_TITLE);
             mClaimDlg.setContentView(R.layout.dlg_claim);
             mClaimDlg.setTitle("Load Claim");
-            final TextView txtClaim = (TextView)mClaimDlg.findViewById(R.id.txt_claimid);
-            final TextView txtLastName = (TextView)mClaimDlg.findViewById(R.id.txt_lastname);
-            TextView txtReturn = (TextView)mClaimDlg.findViewById(R.id.txt_return);
-            if(SharedManager.getInstance().m_CustomerInfo!=null)
-            {
+            final TextView txtClaim = (TextView) mClaimDlg.findViewById(R.id.txt_claimid);
+            final TextView txtLastName = (TextView) mClaimDlg.findViewById(R.id.txt_lastname);
+            TextView txtReturn = (TextView) mClaimDlg.findViewById(R.id.txt_return);
+            if (SharedManager.getInstance().m_CustomerInfo != null) {
                 txtReturn.setText("Successed");
                 txtLastName.setText(SharedManager.getInstance().m_CustomerInfo.mCustomerLastName);
                 txtClaim.setText(String.valueOf(SharedManager.getInstance().m_CustomerInfo.mClaimID));
-            }
-            else
+            } else
                 txtReturn.setText("");
 
-            Button btn_save = (Button)mClaimDlg.findViewById(R.id.btn_save);
+            Button btn_save = (Button) mClaimDlg.findViewById(R.id.btn_save);
             btn_save.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if(txtClaim.getText().length() == 0 || txtLastName.getText().length() == 0)
-                    {
+                    Log.d("save", "save");
+                    if (txtClaim.getText().length() == 0 || txtLastName.getText().length() == 0) {
+                        Log.d("save", "please input");
                         new AlertDialog.Builder(MainActivity.this).setTitle("Alert").setMessage("Please input the ClaimId or LastName!!!").setNegativeButton("OK", null).create().show();
                         return;
                     }
-                    if(SharedManager.getInstance().m_CustomerInfo == null)
-                    {
+                    if (SharedManager.getInstance().m_CustomerInfo == null) {
+                        Log.d("save", "shared manager null");
                         mClaimID = Integer.parseInt(txtClaim.getText().toString());
                         mLastName = txtLastName.getText().toString();
                         MyWaiter waiter = new MyWaiter(MainActivity.this, mLoadClaimWaiter, R.string.loading_claim);
                         waiter.execute(0);
-                    }
-                    else
-                    {
+                    } else {
+                        Log.d("save", "loaded");
                         new AlertDialog.Builder(MainActivity.this).setTitle("Alert").setMessage("You have already loaded!").setNegativeButton("OK", null).create().show();
                     }
                 }
             });
 
-            ImageView btn_ok = (ImageView)mClaimDlg.findViewById(R.id.btn_ok);
+            ImageView btn_ok = (ImageView) mClaimDlg.findViewById(R.id.btn_ok);
             btn_ok.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -460,7 +541,7 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
         return true;
     }
 
-        //make picture and save to a folder
+    //make picture and save to a folder
     private static File getOutputMediaFile() {
         //make a new file directory inside the "sdcard" folder
         File mediaStorageDir = new File("/sdcard/", "Lc Camera");
@@ -495,17 +576,14 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
     @Override
     public void onConnected(Bundle bundle) {
 
-        try{
+        try {
             Location location = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
             if (location == null) {
                 LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
-            }
-            else {
+            } else {
                 handleNewLocation(location);
             }
-        }
-        catch(SecurityException e)
-        {
+        } catch (SecurityException e) {
             new AlertDialog.Builder(MainActivity.this).setTitle("Error").setMessage("Please check your network state.").setNegativeButton("OK", null).create().show();
         }
     }
@@ -546,29 +624,58 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
         public void onSignalStrengthsChanged(SignalStrength signalStrength) {
             super.onSignalStrengthsChanged(signalStrength);
 
-            TelephonyManager tele = (TelephonyManager)getSystemService(TELEPHONY_SERVICE);
+            TelephonyManager tele = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
             String NetTypeStr;
-            switch(tele.getNetworkType()){
-                case 1: NetTypeStr = "GPRS"; break;
-                case 2: NetTypeStr = "EDGE"; break;
-                case 3: NetTypeStr = "UMTS"; break;
-                case 4: NetTypeStr = "CDMA"; break;
-                case 5: NetTypeStr = "EVDO_0"; break;
-                case 6: NetTypeStr = "EVDO_A"; break;
-                case 7: NetTypeStr = "1xRTT"; break;
-                case 8: NetTypeStr = "HSDPA"; break;
-                case 9: NetTypeStr = "HSUPA"; break;
-                case 10: NetTypeStr = "HSPA"; break;
-                case 11: NetTypeStr = "iDen"; break;
-                case 12: NetTypeStr = "EVDO_B"; break;
-                case 13: NetTypeStr = "LTE"; break;
+            switch (tele.getNetworkType()) {
+                case 1:
+                    NetTypeStr = "GPRS";
+                    break;
+                case 2:
+                    NetTypeStr = "EDGE";
+                    break;
+                case 3:
+                    NetTypeStr = "UMTS";
+                    break;
+                case 4:
+                    NetTypeStr = "CDMA";
+                    break;
+                case 5:
+                    NetTypeStr = "EVDO_0";
+                    break;
+                case 6:
+                    NetTypeStr = "EVDO_A";
+                    break;
+                case 7:
+                    NetTypeStr = "1xRTT";
+                    break;
+                case 8:
+                    NetTypeStr = "HSDPA";
+                    break;
+                case 9:
+                    NetTypeStr = "HSUPA";
+                    break;
+                case 10:
+                    NetTypeStr = "HSPA";
+                    break;
+                case 11:
+                    NetTypeStr = "iDen";
+                    break;
+                case 12:
+                    NetTypeStr = "EVDO_B";
+                    break;
+                case 13:
+                    NetTypeStr = "LTE";
+                    break;
 
-                case 14: NetTypeStr = "eHRPD"; break;
-                case 15: NetTypeStr = "HSPA+"; break;
+                case 14:
+                    NetTypeStr = "eHRPD";
+                    break;
+                case 15:
+                    NetTypeStr = "HSPA+";
+                    break;
             }
             int level = signalStrength.getLevel();
-            switch (level)
-            {
+            switch (level) {
                 case 0:
                     pic_signal.setImageBitmap(null);
                     break;
@@ -587,27 +694,27 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
             }
         }
     }
+
     /////////////////////////////////////
     ////////////////////////////////////Web Api
     private void fileUpload(int fileType)//1: photo  2:video
     {//LoadClaimInfo
-        if (SharedManager.getInstance().m_CustomerInfo != null)
-        {
-
+        Log.d("masuk", "masuk");
+        if (SharedManager.getInstance().m_CustomerInfo != null) {
+            Log.d("masuk", "masuk fileUpload");
             String filePath = null;
-            if(fileType == 1)
-            {//photoupload
+            if (fileType == 1) {//photoupload
+                Log.d("masuk", "masuk1");
                 filePath = "/sdcard/Lc Camera/Image_Upload.jpg";
-            }
-            else if(fileType == 2)
-            {//video upload
+            } else if (fileType == 2) {//video upload
+                Log.d("masuk", "masuk2");
                 filePath = "/sdcard/Lc Camera/Video_Upload.mp4";
             }
             try {
                 ExifInterface exif = new ExifInterface(filePath);
 
                 exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE, DMSconv(mCurLocation.getLatitude()));
-                exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE,DMSconv(mCurLocation.getLongitude()));
+                exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, DMSconv(mCurLocation.getLongitude()));
                 if (mCurLocation.getLatitude() > 0)
                     exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE_REF, "N");
                 else
@@ -629,12 +736,12 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
     }
 
     String DMSconv(double coord) {
-        coord = (coord > 0) ? coord : (-1)*coord;  // -105.9876543 -> 105.9876543
-        String sOut = Integer.toString((int)coord) + "/1,";   // 105/1,
+        coord = (coord > 0) ? coord : (-1) * coord;  // -105.9876543 -> 105.9876543
+        String sOut = Integer.toString((int) coord) + "/1,";   // 105/1,
         coord = (coord % 1) * 60;         // .987654321 * 60 = 59.259258
-        sOut = sOut + Integer.toString((int)coord) + "/1,";   // 105/1,59/1,
+        sOut = sOut + Integer.toString((int) coord) + "/1,";   // 105/1,59/1,
         coord = (coord % 1) * 6000;             // .259258 * 6000 = 1555
-        sOut = sOut + Integer.toString((int)coord) + "/1000";   // 105/1,59/1,15555/1000
+        sOut = sOut + Integer.toString((int) coord) + "/1000";   // 105/1,59/1,15555/1000
         return sOut;
     }
 
@@ -642,23 +749,24 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
 
         @Override
         public boolean OnWaiterStart(MyWaiter waiter) {
+            Log.d("save", "OnWaiterStart");
             return super.OnWaiterStart(waiter);
         }
 
         @Override
         public void OnWaiterStop(MyWaiter waiter, Object resultObj) {
 
-            if (resultObj != null){
-                if(mClaimDlg != null) {
+            if (resultObj != null) {
+                Log.d("save", "resultObj != null");
+                if (mClaimDlg != null) {
+                    Log.d("save", "failed");
                     TextView txtReturn = (TextView) mClaimDlg.findViewById(R.id.txt_return);
                     txtReturn.setText("Failed!");
                 }
-            }
-            else
-            {//Upload
-                if(mClaimDlg != null)
-                {
-                    TextView txtReturn = (TextView)mClaimDlg.findViewById(R.id.txt_return);
+            } else {//Upload
+                if (mClaimDlg != null) {
+                    Log.d("save", "success");
+                    TextView txtReturn = (TextView) mClaimDlg.findViewById(R.id.txt_return);
                     txtReturn.setText("Success!");
 
                 }
@@ -667,6 +775,7 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
 
         @Override
         public Object OnWaiterWork(MyWaiter waiter, Object... parms) {
+            Log.d("save", "OnWaiterWork");
             String strError = null;
             strError = CustomerInfo.loadClaimInfo(mClaimID, mLastName);
             return strError;
@@ -674,6 +783,7 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
 
         @Override
         public void OnWaiterUpdate(MyWaiter waiter, Object... params) {
+            Log.d("save", "OnWaiterUpdate");
             super.OnWaiterUpdate(waiter, params);
         }
     };
@@ -688,11 +798,9 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
         @Override
         public void OnWaiterStop(MyWaiter waiter, Object resultObj) {
 
-            if (resultObj != null){
-                new AlertDialog.Builder(MainActivity.this).setTitle("Error").setMessage((String)resultObj).setNegativeButton("OK", null).create().show();
-            }
-            else
-            {
+            if (resultObj != null) {
+                new AlertDialog.Builder(MainActivity.this).setTitle("Error").setMessage((String) resultObj).setNegativeButton("OK", null).create().show();
+            } else {
                 new AlertDialog.Builder(MainActivity.this).setTitle("Success").setMessage("Upload Successed!").setNegativeButton("OK", null).create().show();
             }
         }
@@ -702,12 +810,9 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
             String strError = null;
 
             File uploadFile = null;
-            if(waiter.m_tag == 1)
-            {//photoupload
+            if (waiter.m_tag == 1) {//photoupload
                 uploadFile = new File("/sdcard/Lc Camera/Image_Upload.jpg");
-            }
-            else if(waiter.m_tag == 2)
-            {//video upload
+            } else if (waiter.m_tag == 2) {//video upload
                 uploadFile = new File("/sdcard/Lc Camera/Video_Upload.mp4");
             }
             CustomerInfo cust = SharedManager.getInstance().m_CustomerInfo;
@@ -732,11 +837,9 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
         @Override
         public void OnWaiterStop(MyWaiter waiter, Object resultObj) {
 
-            if (resultObj != null){
-                new AlertDialog.Builder(MainActivity.this).setTitle("Error").setMessage((String)resultObj).setNegativeButton("OK", null).create().show();
-            }
-            else
-            {
+            if (resultObj != null) {
+                new AlertDialog.Builder(MainActivity.this).setTitle("Error").setMessage((String) resultObj).setNegativeButton("OK", null).create().show();
+            } else {
                 Intent intent = new Intent(MainActivity.this, ConversationActivity.class);
                 startActivity(intent);
             }

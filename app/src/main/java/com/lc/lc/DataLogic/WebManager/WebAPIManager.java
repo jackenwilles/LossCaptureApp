@@ -80,6 +80,7 @@ public class WebAPIManager {
     }
 
     public JsonObject loadClaim(int claim_id, String lastName) throws IOException
+
     {
         m_url = HOST_ADDRESS + "/data/loadclaim";
         JsonObject postBody = new JsonObject();
@@ -91,6 +92,7 @@ public class WebAPIManager {
 
         Map<String, String> param = new HashMap<String, String>();
         param.put("data", WebAPIManager.JSONParser.toJson(postBody));
+        Log.d("m_url", m_url + "\n" + param.toString());
         return WebAPIManager.JSONParser.fromJson(Process(MethodType.POST, param), JsonObject.class);
     }
 
@@ -129,6 +131,7 @@ public class WebAPIManager {
         }catch(Exception e) {
 
         }
+
 
         return null;
     }

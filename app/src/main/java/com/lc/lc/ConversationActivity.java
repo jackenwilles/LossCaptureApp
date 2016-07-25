@@ -60,7 +60,7 @@ public class ConversationActivity extends AppCompatActivity {
     /*
      * You must provide a Twilio AccessToken to connect to the Conversations service
      */
-    private static final String TWILIO_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2M2MjAyNWUxNjBjNTE4ODk5N2U1M2ZlOTc5YWYwMGI3LTE0NjkwOTM2MTUiLCJpc3MiOiJTS2M2MjAyNWUxNjBjNTE4ODk5N2U1M2ZlOTc5YWYwMGI3Iiwic3ViIjoiQUM1NTM0ZDE3ZmRiMzMyOGZlNjg3OTc0MjViMDA1NDg0YyIsImV4cCI6MTQ2OTA5NzIxNSwiZ3JhbnRzIjp7ImlkZW50aXR5IjoiUmlyaXMiLCJydGMiOnsiY29uZmlndXJhdGlvbl9wcm9maWxlX3NpZCI6IlZTYjIzNTQ2YzRjNGVhZWNhZTY1MjhiMmI1MzNjMGE3YmMifX19.NGScFbd5Gu5awTZBXmT74ejCaMgVPg4FMiAUVkciVpI";
+    private static final String TWILIO_ACCESS_TOKEN = "YOUR ACCESS TOKEN HERE";
 
     /*
      * Twilio Conversations Client allows a client to create or participate in a conversation.

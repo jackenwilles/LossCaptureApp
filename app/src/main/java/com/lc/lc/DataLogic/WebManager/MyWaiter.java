@@ -31,6 +31,7 @@ public class MyWaiter extends AsyncTask<Object, Object, Object> {
         }
 
         public Object OnWaiterWork(MyWaiter waiter, Object... parms) {
+
             return null;
         }
 

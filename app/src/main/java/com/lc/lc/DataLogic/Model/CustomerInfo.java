@@ -1,5 +1,7 @@
 package com.lc.lc.DataLogic.Model;
 
+import android.util.Log;
+
 import com.google.gson.JsonObject;
 import com.lc.lc.DataLogic.SharedManager;
 import com.lc.lc.DataLogic.WebManager.WebAPIManager;
@@ -16,12 +18,16 @@ public class CustomerInfo {
 
     public static String loadClaimInfo(int claim_id, String lastName)
     {
+        Log.d("save", "loadClaimInfo");
         String strErr = null;
         try{
             JsonObject json = WebAPIManager.APIs.loadClaim(claim_id, lastName);
+            Log.d("save", claim_id +" "+lastName);
 
+            Log.d("save", Integer.toString(json.get("code").getAsInt())+ "\n"+ json.toString());
             if(json.get("code").getAsInt() == 200)
             {//Success
+                Log.d("save", "json success");
                 JsonObject data = json.get("data").getAsJsonObject();
                 SharedManager.getInstance().m_CustomerInfo = new CustomerInfo();
                 SharedManager.getInstance().m_CustomerInfo.mClaimID = claim_id;
