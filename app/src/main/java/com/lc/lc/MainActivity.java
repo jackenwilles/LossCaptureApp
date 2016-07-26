@@ -38,6 +38,7 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.lc.lc.DataLogic.Model.CustomerInfo;
 import com.lc.lc.DataLogic.SharedManager;
+import com.lc.lc.DataLogic.WebManager.Connectivity;
 import com.lc.lc.DataLogic.WebManager.MyWaiter;
 
 import java.io.File;
@@ -99,6 +100,13 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
 
 
         initialize();
+
+//        //Sample code for check connection fast or not
+//        if(Connectivity.isConnectedFast(this)){
+//            Log.d("connectivity", "fast");
+//        }else{
+//            Log.d("connectivity", "not fast");
+//        }
 
     }
 
@@ -699,9 +707,9 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
     ////////////////////////////////////Web Api
     private void fileUpload(int fileType)//1: photo  2:video
     {//LoadClaimInfo
-        Log.d("masuk", "masuk");
+        Log.d("masuk", "masuk fileUpload");
         if (SharedManager.getInstance().m_CustomerInfo != null) {
-            Log.d("masuk", "masuk fileUpload");
+            Log.d("masuk", "SharedManager.getInstance().m_CustomerInfo != null");
             String filePath = null;
             if (fileType == 1) {//photoupload
                 Log.d("masuk", "masuk1");
@@ -792,12 +800,13 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
 
         @Override
         public boolean OnWaiterStart(MyWaiter waiter) {
+            Log.d("mUploadWaiter", "OnWaiterStart");
             return super.OnWaiterStart(waiter);
         }
 
         @Override
         public void OnWaiterStop(MyWaiter waiter, Object resultObj) {
-
+            Log.d("mUploadWaiter", "OnWaiterStop");
             if (resultObj != null) {
                 new AlertDialog.Builder(MainActivity.this).setTitle("Error").setMessage((String) resultObj).setNegativeButton("OK", null).create().show();
             } else {
@@ -807,6 +816,7 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
 
         @Override
         public Object OnWaiterWork(MyWaiter waiter, Object... parms) {
+            Log.d("mUploadWaiter", "OnWaiterWork");
             String strError = null;
 
             File uploadFile = null;
@@ -815,14 +825,17 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
             } else if (waiter.m_tag == 2) {//video upload
                 uploadFile = new File("/sdcard/Lc Camera/Video_Upload.mp4");
             }
+            //NEED CLAIM ID
             CustomerInfo cust = SharedManager.getInstance().m_CustomerInfo;
             strError = SharedManager.getInstance().fileUpload(cust.mClaimID, 1, uploadFile);
+            //strError = SharedManager.getInstance().fileUpload(111, 1, uploadFile);
 
             return strError;
         }
 
         @Override
         public void OnWaiterUpdate(MyWaiter waiter, Object... params) {
+            Log.d("mUploadWaiter", "OnWaiterUpdate");
             super.OnWaiterUpdate(waiter, params);
         }
     };

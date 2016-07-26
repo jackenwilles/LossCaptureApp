@@ -106,6 +106,7 @@ public class WebAPIManager {
     public JsonObject uploadFile(int claim_id, int userId, File file)
     {
         m_url = HOST_ADDRESS + "/data/photoupload";
+
         JsonObject postBody = new JsonObject();
 
         JsonObject customInfo = new JsonObject();
@@ -114,6 +115,7 @@ public class WebAPIManager {
         customInfo.addProperty("UserID", userId);
 
         HttpPost httpost = new HttpPost(m_url);
+        Log.d("m_url", m_url);
         MultipartEntity entity = new MultipartEntity();
 
         try
@@ -126,6 +128,8 @@ public class WebAPIManager {
             HttpResponse response = client.execute(httpost);
             HttpEntity httpEntity = response.getEntity();
             String result = EntityUtils.toString(httpEntity);
+            Log.d("m_url", "here");
+            Log.d("m_url", result);
             return WebAPIManager.JSONParser.fromJson(result, JsonObject.class);
 
         }catch(Exception e) {

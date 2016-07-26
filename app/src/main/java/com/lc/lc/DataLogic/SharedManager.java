@@ -2,6 +2,7 @@ package com.lc.lc.DataLogic;
 
 import android.content.Context;
 import android.location.Location;
+import android.util.Log;
 
 import com.google.gson.JsonObject;
 import com.lc.lc.DataLogic.Model.CustomerInfo;
@@ -36,7 +37,15 @@ public class SharedManager {
     }
 
     public String fileUpload(int claim_id, int userId, File uploadFile){
+        Log.d("fileUpload", claim_id + " "+ userId +" "+uploadFile.toString());
         String strErr = null;
+
+//        JsonObject json = WebAPIManager.APIs.uploadFile(claim_id, userId, uploadFile);
+//        Log.d("fileUpload", json.toString());
+//        if (json.get("code").getAsInt() == 200 ) {
+//
+//        }
+
         try {
             JsonObject json = WebAPIManager.APIs.uploadFile(claim_id, userId, uploadFile);
             if (json.get("code").getAsInt() == 200 ) {
